@@ -4,13 +4,32 @@
 
 import subprocess
 
+class task:
+    def __init__(self,ip,ports):
+         self.ip=ip
+         self.ports=ports
+
 class Mas_Scanner:
-    def __init__(self,target,ports):
-        self.target=target 
-        self.ports=ports
+    def __init__(self,task_list):
+        self.task_list=task_list
+        self.result={}
+    
+    def analyze(self,data):
+        pass
+
+    def start_task(self,task):
+        cmd = 'masscan {ip} -p{ports} --rate 50000'.format(ip=task.ip,ports=task.ports)
+        stdoutdata = subprocess.getoutput(cmd)
+        self.analyze(stdoutdata)
+    
+
 
     def run(self):
-        cmd = 'masscan {ip} -p{ports} --rate 50000'
-        p = subprocess.Popen(cmd,)
+        for task in task_list:
+            self.start_task(task)
+        # p = subprocessPopen(cmd,)
 
 
+if __name__=='__main__':
+    # scanner=Mas_Scanner(1,2)
+    # scanner.run()
