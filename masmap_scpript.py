@@ -14,22 +14,31 @@ class Mas_Scanner:
         self.task_list=task_list
         self.result={}
     
-    def analyze(self,data):
-        pass
+    def analyze(self,data,ip):#analyze and add task scan result to scanner result
+        ports_list=[]
+        for line in data.split('\n'):
+            port = line.split()[3] # xx/tcp
+            port = port.split('/')[0] 
+            ports_list.append(port)
 
-    def start_task(self,task):
+        if ip in self.result:
+            self.result[ip]=self.result[ip]+ports_list
+        self.result[ip]=ports_list
+
+    def start_task(self,task): #one task scan only one ip
         cmd = 'masscan {ip} -p{ports} --rate 50000'.format(ip=task.ip,ports=task.ports)
         stdoutdata = subprocess.getoutput(cmd)
-        self.analyze(stdoutdata)
+        self.analyze(stdoutdata,task.ip)
     
 
 
     def run(self):
-        for task in task_list:
+        for task in self.task_list:
             self.start_task(task)
         # p = subprocessPopen(cmd,)
 
 
 if __name__=='__main__':
+    pass
     # scanner=Mas_Scanner(1,2)
     # scanner.run()
