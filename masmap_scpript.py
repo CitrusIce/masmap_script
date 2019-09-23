@@ -5,8 +5,9 @@
 
 import subprocess
 import pysnooper
+from libnmap.parser import NmapParser
 
-class task:
+class Task:
     def __init__(self,ip,ports_list):
          self.ip=ip
          self.ports=','.join([str(x) for x in ports_list])
@@ -41,9 +42,28 @@ class Mas_Scanner:
             self.start_task(task)
         # p = subprocessPopen(cmd,)
 
+class Nmap_Scanner:
+    def __init__(self,task_list):
+        self.task_list = task_list
+        self.result={}
+
+    @pysnooper.snoop()
+    def analyze(self,data,ip):#analyze and add task scan result to scanner result
+        nmap_report = NmapParser.parse(nm.stdout)
+
+        for scanned_hosts in nmap_report.hosts:
+            print scanned_hosts
+
+    def start_task(self,task):
+        cmd = 'nmap -T4 -sV -Pn -n -sS --open -p {ports} {ip} -oX /dev/stdout'.format(ports=task.ports,ip=task.ip)'
+        proc = subprocess.Popen(cmd,shell=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+        stdoutdata=proc.stdout.read().decode('UTF-8')
+        self.analyze(stdoutdata,task.ip)
+
+
 
 if __name__=='__main__':
-    task_ = task('47.93.234.29',list(range(1,1000)))
+    task_ = Task('47.93.234.29',list(range(1,1000)))
     scanner=Mas_Scanner([task_,])
     scanner.run()
     print(scanner.result)
