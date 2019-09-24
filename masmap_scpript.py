@@ -5,14 +5,14 @@
 
 import subprocess
 import pysnooper
-from libnmap.parser import NmapParser
+import nmap
 
 class Task:
     def __init__(self,ip,ports_list):
          self.ip=ip
          self.ports=','.join([str(x) for x in ports_list])
 
-class Mas_Scanner:
+class Mas_Scanner:  
     def __init__(self,task_list):
         self.task_list=task_list
         self.result={}
@@ -30,7 +30,7 @@ class Mas_Scanner:
             self.result[ip]=self.result[ip]+ports_list
         self.result[ip]=ports_list
 
-    def start_task(self,task): #one task scan only one ip
+    def start_task(self,task): #one task scan only one ip with different ports
         cmd = 'masscan {ip} -p{ports} --rate 50000'.format(ip=task.ip,ports=task.ports)
         print(cmd)
         proc = subprocess.Popen(cmd,shell=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
@@ -42,29 +42,42 @@ class Mas_Scanner:
             self.start_task(task)
         # p = subprocessPopen(cmd,)
 
+# for namp scanner, a task inlude one ip with its all ports
 class Nmap_Scanner:
     def __init__(self,task_list):
         self.task_list = task_list
         self.result={}
 
-    @pysnooper.snoop()
-    def analyze(self,data,ip):#analyze and add task scan result to scanner result
-        nmap_report = NmapParser.parse(nm.stdout)
-
-        for scanned_hosts in nmap_report.hosts:
-            print scanned_hosts
 
     def start_task(self,task):
-        cmd = 'nmap -T4 -sV -Pn -n -sS --open -p {ports} {ip} -oX /dev/stdout'.format(ports=task.ports,ip=task.ip)'
-        proc = subprocess.Popen(cmd,shell=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
-        stdoutdata=proc.stdout.read().decode('UTF-8')
-        self.analyze(stdoutdata,task.ip)
+        nm = nmap.PortScanner()
+        nm.scan(hosts=task.ip,ports=task.ports,arguments='-T4 -sV -Pn -sS',sudo=True)
+        self.result[task.ip]=nm[task.ip]
 
+    def print_scan_result(self):
+        for ip in self.result:
+            print('----------------------------------------------------')
+            print('Host : {}'.format(ip))
+            print('--------------------')
+            for port in self.result[ip]['tcp']:
+                portinfo=self.result[ip]['tcp'][port]
+                str_buffer = 'port : {port}\tstate : {state}\t{name} {product} {version}'.format(port=port,
+                                                                                               state=portinfo['state'],
+                                                                                               name=portinfo['name'],
+                                                                                               product=portinfo['product'],
+                                                                                               version=portinfo['version'])
+                print(str_buffer)
+    def run(self):
+        for task in self.task_list:
+            self.start_task(task)
 
 
 if __name__=='__main__':
-    task_ = Task('47.93.234.29',list(range(1,1000)))
-    scanner=Mas_Scanner([task_,])
-    scanner.run()
-    print(scanner.result)
+    task_ = Task('47.93.234.29',[22,4444])
+    nm = Nmap_Scanner([task_,])
+    nm.run()
+    nm.print_scan_result()
+    #  scanner=Mas_Scanner([task_,])
+    #  scanner.run()
+    #  print(scanner.result)
     # scanner.run()
