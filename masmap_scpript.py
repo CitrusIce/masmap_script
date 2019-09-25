@@ -8,7 +8,10 @@ import pysnooper
 import threading
 import os
 import nmap
+import argparse
+import json
 
+iolock = threading.Lock()
 class Task:
     def __init__(self,ip,ports_list):
          self.ip=ip
@@ -21,7 +24,7 @@ class Mas_Scanner(threading.Thread):
         self.task_list=task_list
         self.result={}
     
-    @pysnooper.snoop()
+    #  @pysnooper.snoop()
     def analyze(self,data,ip):#analyze and add task scan result to scanner result
         ports_list=[]
         for line in data.split('\n'):
@@ -34,19 +37,24 @@ class Mas_Scanner(threading.Thread):
             self.result[ip]=self.result[ip]+ports_list
         else:
             self.result[ip]=ports_list
-        print(self.result[ip])
-        print(ports_list)
 
-    @pysnooper.snoop()
+        if ports_list !=[]:
+            iolock.acquire()
+            print('find ports on host:',ip,':')
+            print(ports_list)
+            iolock.release()
+
+    #  @pysnooper.snoop()
     def start_task(self,task): #one task scan only one ip with different ports
-        # cmd = 'masscan {ip} -p{ports} --rate 50000 --wait 0'.format(ip=task.ip,ports=task.ports)
+        iolock.acquire()
+        print("masscan scanning ip:",task.ip)
+        iolock.release()
         cmd = 'masscan {ip} -p{ports} --wait 0 --rate 1500'.format(ip=task.ip,ports=task.ports)
-        # print(cmd)
         proc = subprocess.Popen(cmd,shell=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
         proc.wait()
         stdoutdata=proc.stdout.read().decode('UTF-8')
         stderrdata = proc.stderr.read().decode('UTF-8')
-        print(stdoutdata)
+        #  print(stdoutdata)
         self.analyze(stdoutdata,task.ip)
     
     def run(self):
@@ -62,9 +70,13 @@ class Nmap_Scanner:
 
 
     def start_task(self,task):
+        print('start determine service/version of ports on host:',task.ip)
         nm = nmap.PortScanner()
         nm.scan(hosts=task.ip,ports=task.ports,arguments='-T4 -sV -Pn -sS',sudo=True)
+        #  if task.ip in nm:
         self.result[task.ip]=nm[task.ip]
+        #  else:
+            #  self.result[task.ip]=None
 
     def print_scan_result(self):
         for ip in self.result:
@@ -80,6 +92,22 @@ class Nmap_Scanner:
                                                                                                product=portinfo['product'],
                                                                                                version=portinfo['version'])
                 print(str_buffer)
+    def output_file(self,filename):
+        json_data = {}
+        for ip in self.result:
+            ports_dict = sorted(self.result[ip]['tcp'])
+            json_data[ip]={}
+            for port in ports_dict:
+                portinfo=self.result[ip]['tcp'][port]
+                json_data[ip][port] = {
+                    'state':portinfo['state'],
+                   'name':portinfo['name'],
+                   'product':portinfo['product'],
+                   'version':portinfo['version']
+                   }
+        with open(filename, 'w') as f:
+            json.dump(json_data, f)
+
     def run(self):
         for task in self.task_list:
             self.start_task(task)
@@ -101,22 +129,35 @@ def split_task(ip): #split ports range in 5 pieces and return a list
 
 
 
-@pysnooper.snoop()
+#  @pysnooper.snoop()
 def main():
-    # print([x.ports for x in split_task('47.93.234.29')])
     if os.getuid() != 0:
         print('please run this script with root!')
         exit()
-    task_list = split_task('47.93.234.29')
+
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('host',nargs='?',help='read ip from a file',default=None)
+    parser.add_argument('-r','--input',help='read ip from a file')
+    parser.add_argument('-o','--output',help='output filename')
+    args = parser.parse_args()
+    task_list=[]
+    if args.host != None:
+        task_list += split_task(args.host)
+    if args.input != None:
+        f = open(args.input,'r')
+        for line in f:
+            task_list += split_task(line.replace('\n','').replace('\r',''))
+        f.close()
+
+    if task_list==[]:
+        print('Please input at least one target!')
+        exit()
+
     masscaner_num = 2
     task_per_scanner = int(len(task_list)/masscaner_num)
     masscanner_list = []
-    # x = 0
-    # scanner = Mas_Scanner([Task('47.93.234.29',[22,]),])
-    # scanner = Mas_Scanner(task_list[x*task_per_scanner:x*task_per_scanner+task_per_scanner])
-    # scanner.run()
-    # print(scanner.result)
-    # exit()
+
     for x in range(masscaner_num):
         scanner = Mas_Scanner(task_list[x*task_per_scanner:x*task_per_scanner+task_per_scanner])
         masscanner_list.append(scanner)
@@ -134,6 +175,7 @@ def main():
             else:
                 masscan_result[ip]+=scanner.result[ip]
 
+    print('masscan scan complete:')
     print(masscan_result)
     nmap_task_list = []
     for ip in masscan_result:
@@ -142,23 +184,10 @@ def main():
     nm_scanner = Nmap_Scanner(nmap_task_list)
     nm_scanner.run()
     nm_scanner.print_scan_result()
+    if args.output !=None:
+        nm_scanner.output_file(args.output)
 
 
 if __name__=='__main__':
-    print(Task('47.',[6600,22]).ports)
-    nm_scanner = Nmap_Scanner([Task('47.93.234.29',[6600,22])])
-    nm_scanner.run()
-    nm_scanner.print_scan_result()
-    # main()
+    main()
 
-
-
-
-    # task_ = Task('47.93.234.29',[22,4444])
-    # nm = Nmap_Scanner([task_,])
-    # nm.run()
-    # nm.print_scan_result()
-    #  scanner=Mas_Scanner([task_,])
-    #  scanner.run()
-    #  print(scanner.result)
-    # scanner.run()
