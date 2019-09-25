@@ -10,6 +10,7 @@ import os
 import nmap
 import argparse
 import json
+from IPy import IP
 
 iolock = threading.Lock()
 class Task:
@@ -139,6 +140,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('host',nargs='?',help='read ip from a file',default=None)
     parser.add_argument('-r','--input',help='read ip from a file')
+    parser.add_argument('-c','--cidr',help='scan a range of ip')
     parser.add_argument('-o','--output',help='output filename')
     args = parser.parse_args()
     task_list=[]
@@ -149,6 +151,9 @@ def main():
         for line in f:
             task_list += split_task(line.replace('\n','').replace('\r',''))
         f.close()
+    if args.cidr != None:
+        for ip in IP(args.cidr):
+            task_list += split_task(ip)
 
     if task_list==[]:
         print('Please input at least one target!')
