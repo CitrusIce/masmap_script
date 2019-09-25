@@ -4,7 +4,7 @@
 #  使用这些列表作为Nmap的扫描目标并执行常规Nmap扫描。
 
 import subprocess
-import pysnooper
+#  import pysnooper
 import threading
 import os
 import nmap
@@ -114,7 +114,7 @@ class Nmap_Scanner:
 
 # @pysnooper.snoop()
 def split_task(ip): #split ports range in 5 pieces and return a list
-    ports_list = [str(x) for x in range(1,49152)]
+    ports_list = [str(x) for x in range(1,65536)]
     n = int(65535/5)
     task_list = []
     for x in range(5):
