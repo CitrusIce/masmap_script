@@ -9,6 +9,7 @@ import threading
 import os
 import nmap
 import argparse
+import re
 import json
 from IPy import IP
 
@@ -115,6 +116,8 @@ class Nmap_Scanner:
 
 # @pysnooper.snoop()
 def split_task(ip): #split ports range in 5 pieces and return a list
+    if not re.match(r'\d+\.\d+\.\d+.\d+', ip):
+        raise Exception("Invalid IP format: '"+ip+"'")
     ports_list = [str(x) for x in range(1,65536)]
     n = int(65535/5)
     task_list = []
