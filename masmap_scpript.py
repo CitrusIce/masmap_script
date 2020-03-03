@@ -184,7 +184,8 @@ def main():
     print(masscan_result)
     nmap_task_list = []
     for ip in masscan_result:
-        nmap_task_list.append(Task(ip,masscan_result[ip]))
+        if len(masscan_result[ip])!=0:
+            nmap_task_list.append(Task(ip,masscan_result[ip]))
 
     nm_scanner = Nmap_Scanner(nmap_task_list)
     nm_scanner.run()
